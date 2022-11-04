@@ -61,6 +61,27 @@ app.post('/register', async (req, res) => {
   return res.sendStatus(201);
 });
 
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ msg: 'Invalid email or password' });
+  }
+
+  const user = await getLoginUser(email);
+  if (user) {
+    const validPassword = bcrypt.compareSync(password, user.password);
+    if (!validPassword) {
+      return res.status(400).json({ msg: 'Invalid email or password' });
+    }
+  }
+
+  return res.status(200).json({ user: {
+    ...user,
+    password: undefined
+  } });
+});
+
 app.use((req, res, next) => {
   return res.status(404).json({
     error: 'Not Found',
