@@ -1,0 +1,121 @@
+org: stephridnell
+app: cca3-api
+service: cca3-api
+frameworkVersion: '3'
+
+custom:
+  userTableName: 'users'
+  pokemonTableName: 'pokemon'
+  s3Bucket: 'cca3-wtp-images'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: production
+  region: ap-southeast-2
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::Join: 
+              - ""
+              - - Fn::GetAtt: [ UserTable, Arn ]
+                - "*"
+            - Fn::GetAtt: [ PokemonTable, Arn ]
+        - Effect: "Allow"
+          Action:
+            - s3:PutObject
+          Resource:
+            - Fn::GetAtt: [ PokemonImagesBucket, Arn ]
+  environment:
+    USERS_TABLE: ${self:custom.userTableName}
+    POKEMON_TABLE: ${self:custom.pokemonTableName}
+    S3_BUCKET:  ${self:custom.s3Bucket}
+
+functions:
+  api:
+    handler: handler.handler
+    events:
+      - httpApi: '*'
+
+resources:
+  Resources:
+    PokemonImagesBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.s3Bucket}
+        AccessControl: PublicRead
+    PokemonImagesBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: PokemonImagesBucket
+        PolicyDocument:
+          Statement:
+            - Sid: PublicReadGetObject
+              Effect: Allow
+              Principal: "*"
+              Action:
+              - s3:GetObject
+              Resource: arn:aws:s3:::${self:custom.s3Bucket}/*
+    UserTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: email
+            AttributeType: S
+          - AttributeName: password
+            AttributeType: S
+          - AttributeName: score
+            AttributeType: N
+        GlobalSecondaryIndexes:
+          - IndexName: byEmail
+            KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+            - AttributeName: password
+              KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          - IndexName: userTopScore
+            KeySchema:
+            - AttributeName: SK
+              KeyType: HASH
+            - AttributeName: score
+              KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.userTableName}
+    PokemonTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: N
+          - AttributeName: SK
+            AttributeType: N
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.pokemonTableName}
