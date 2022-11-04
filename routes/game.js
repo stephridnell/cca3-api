@@ -1,5 +1,5 @@
 const express = require('express')
-const { insertItem, checkUserExists, getPreviousHighScore } = require('../lib/db.js')
+const { insertItem, getUser, getPreviousHighScore, getLeaderboard } = require('../lib/db.js')
 const { v4 } = require('uuid')
 
 const router = express.Router()
@@ -14,7 +14,7 @@ router.post('/end', async (req, res) => {
   }
 
   // make sure legit user
-  const userExists = await checkUserExists(userId)
+  const userExists = await getUser(userId)
   if (!userExists) {
     return res.status(400).json({ msg: 'User does not exist' })
   }
@@ -57,6 +57,16 @@ router.post('/end', async (req, res) => {
   }
 
   return res.sendStatus(201)
+})
+
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const leaderboard = await getLeaderboard()
+    res.json(leaderboard)
+  } catch (err) {
+    console.log(err)
+    return res.status(500).json({ msg: 'Unexpected error occurred' })
+  }
 })
 
 module.exports = router
