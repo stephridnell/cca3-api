@@ -95,7 +95,11 @@ router.get('/stats/:userId', async (req, res) => {
       return prev + curr.score
     }, 0)
 
-    res.json({ encounters: encountersArray.sort((a, b) => b.score < a.score ? -1 : 1), totalScore })
+    res.json({
+      encounters: encountersArray.sort((a, b) => b.score < a.score ? -1 : 1),
+      totalScore,
+      totalGamesPlayed: games.length
+    })
   } catch (err) {
     console.log(err)
     return res.status(500).json({ msg: 'Unexpected error occurred' })
