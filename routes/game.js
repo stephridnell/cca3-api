@@ -1,5 +1,5 @@
 const express = require('express')
-const { insertItem, getUser, getPreviousHighScore, getLeaderboard } = require('../lib/db.js')
+const { insertItem, getUser, getPreviousHighScore, getLeaderboard, getUserGames, getPokemon } = require('../lib/db.js')
 const { v4 } = require('uuid')
 
 const router = express.Router()
@@ -42,7 +42,6 @@ router.post('/end', async (req, res) => {
 
   // update leaderboard
   const previousHighScore = await getPreviousHighScore(userId)
-  console.log('previousHighScore', previousHighScore, score)
   if (previousHighScore < score) {
     try {
       await insertItem(process.env.USERS_TABLE, {
@@ -63,6 +62,40 @@ router.get('/leaderboard', async (req, res) => {
   try {
     const leaderboard = await getLeaderboard()
     res.json(leaderboard)
+  } catch (err) {
+    console.log(err)
+    return res.status(500).json({ msg: 'Unexpected error occurred' })
+  }
+})
+
+
+router.get('/stats/:userId', async (req, res) => {
+  try {
+    const games = await getUserGames(req.params.userId)
+    const results = games.map(game => game.results).flat()
+    const encounters = results.reduce((prev, curr) => {
+      const pokemonId = curr.pokemon
+      if (!prev[pokemonId]) {
+        prev[pokemonId] = { count: 0 }
+      }
+      prev[pokemonId].count++
+      return prev
+    }, {})
+
+    const encountersArray = []
+    for (let pokemonId of Object.keys(encounters)) {
+      const pokemon = await getPokemon(pokemonId)
+      encountersArray.push({
+        ...encounters[pokemonId],
+        pokemon
+      })
+    }
+
+    const totalScore = games.reduce((prev, curr) => {
+      return prev + curr.score
+    }, 0)
+
+    res.json({ encounters: encountersArray.sort((a, b) => b.score < a.score ? -1 : 1), totalScore })
   } catch (err) {
     console.log(err)
     return res.status(500).json({ msg: 'Unexpected error occurred' })
