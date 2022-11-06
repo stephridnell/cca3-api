@@ -22,7 +22,9 @@ app.use('/game', gameRoutes)
 
 app.get('/pokemon', async function (req, res) {
   const pokemon = await getAllPokemon()
-  res.json({ pokemon })
+  // removing any multiwork pokemon (includes -) makes the game too hard for
+  // answers like nidoran-m and nidoran-f
+  res.json({ pokemon: pokemon.filter(el => !el.name.includes('-')) })
 })
 
 // commented out because this doesn't really need to be run again
